@@ -1,0 +1,463 @@
+# INTRODUCTION
+
+## Introduction to Subways Data
+
+These subways data provide the location and opening date of all subway stations worldwide for which records are available. In these data, a subway is defined as 'as an electric-powered urban rail system isolated from interactions with automobile traffic and pedestrians' (Gendron-Carrier et al. 2021). Under this definition, heavy rail commuter lines and streetcars are excluded to focus on intra-city subway systems. These records were compiled manually for use in [Subways and Urban Growth: Evidence from Earth](https://www.nber.org/system/files/working_papers/w24996/w24996.pdf), Gonalez-Navarro and Turner (2018), using a variety of online sources including http://www.urbanrail.net/. The initial dataset was created between January 2012 and February 2014 by Farhan Yahya, Mahdy Saddradini, Mohamed Salat, and Fern Ramoutar, and it was subsequently updated in 2020 to include data through December 2017. Latitude, Longitude, Station Name, Subway Line, Country, City, and Year Completed are included in the main dataset. 
+
+These data were used further to approximate the route of each subway line by connecting stations along the same line by their shortest route. The geographic representations of these routes, stored individually at 5-year intervals from 1935-2000, are provided for use as well.
+
+Subway ridership was also compiled for these public transit systems. While ridership is not available for all systems, the team obtained data for 77 subway and 40 bus systems. These data were collected from a variety of transit organizations and government sources, and they include counts of total public transit rides, heavy rail rides, bus rides and light rail rides by year, country, and city for dates between 1963 and 2014. 
+
+
+# INTRODUCTION TO GEOSPATIAL DATA AND TOOLS
+
+## Data Structure
+In geospatial data analysis, data can be classified into two categories: raster and vector data. A graphic comparison between raster and vector data can be found in [this](https://worldbank.github.io/OpenNightLights/tutorials/mod2_1_data_overview.html) page.
+
+* **Raster data**: Data stored in a raster format is arranged in a regular grid of cells, without storing the coordinates of each point (namely, a cell, or a pixel). The coordinates of the corner points and the spacing of the grid can be used to calculate (rather than to store) the coordinates of each location in the grid. Any given pixel in the grid stores one or more values (in one or more bands).
+* **Vector data**: Data in a vector format is stored such that the X and Y coordinates are stored for each point. Data can be represented, for example, as points, lines and polygons. A point has only one coordinate (X and Y), a line has two coordinates (at the start and end of the line) and a polygon is essentially a line that closes on itself to enclose a region. Polygons are usually used to represent the area and perimeter of continuous geographic features. Vector data stores features in their original resolution, without aggregation.
+
+More information and examples can be found in sections 3 & 4 of the [Earth Analytics Course](https://www.earthdatascience.org/courses/earth-analytics/).
+
+In this tutorial, we will primarily use vector data. Geospatial data in vector format are often stored in a **shapefile**, a popular format for storing vector data developed by ESRI. The **shapefile** format is actually composed of multiple individual files which make up the entire data. At a minimum, there will be 3 file types included with this geographic data (.shp, .shx, .dbf), but there are often other files included which store additional information. In order to be read and used as a whole, all file types must have the same name (eg, subway_stations2.shp, subway_stations2.shx) and be in the same folder. For more details on shapefiles and file types, see [this documentation](https://desktop.arcgis.com/en/arcmap/latest/manage-data/shapefiles/shapefile-file-extensions.htm).
+
+Because the structure of points, lines, and polygons are different, each shapefile can only contain one vector type (all points, all lines, or all polygons). You will not find a mixture of point, line, and polygon objects in a single shapefile, so in order to work with these different types in the same analysis, multiple shapefiles will need to be used and layered. We'll see an example of this in section 2. 
+
+ 
+
+## Tools
+
+### Installation of R
+To get started with R, we provide instructions on how to download and install R on your computer. R is an open source software, which means users like you can also inspect, modify, and improve its source code.
+
+The Comprehensive R Archive Network ([CRAN](https://cran.r-project.org/)) provides links to install R under different operating systems. RStudio [page](https://support.rstudio.com/hc/en-us/articles/200554786-Problem-Installing-Packages) provides a brief guide for troubleshooting. 
+
+### RStudio
+RStudio is an integrated development environment for R. R provides the engine for running code, while RStudio is a user friendly control panel to perform various tasks. RStudio facilitates R code writing and debugging and provides tools for workspace management. RStudio can be downloaded from the RStudio [IDE page](https://www.rstudio.com/products/rstudio/download/). 
+
+There are numerous posts, tutorials, and courses on the internet. Once you have installed R and RStudio, pick any of the following resources to get familiar with R:
+
+* Online courses
+  + Datacamp online course: [Introduction to R](https://www.datacamp.com/courses/free-introduction-to-r)
+  + Coursera in collaboration with Johns Hopkins University provides an online course on [R programming](https://www.coursera.org/learn/r-programming)
+
+* Books
+  + [R Cookbook 2nd Edition](https://rc2e.com/) by James Long and Paul Teetor
+  + [R for Data Science](https://r4ds.had.co.nz/) by Hadley Wickham and Garrett Grolemund
+
+### Setting up Environment
+
+In order to perform data manipulation, we need to attach packages. The first step is downloading R packages from CRAN. For this exercise, we are going to use the packages _tidyverse_ and _sf_ for data manipulation, _ggplot_ and _terra_ for creating visualizations, _haven_ for reading in Stata data, _knitr_ and _stargazer_ for creating tables, and _lfe_ for running our usage example regression. We'll also use _remotes_ to download the package _geodata_ to obtain background maps for our subways data. To download these packages, in the R or RStudio console, type the following code:
+```{r install, eval=FALSE, include=TRUE}
+install.packages(c("tidyverse","sf","ggplot2","terra","remotes","stargazer","lfe"))
+```
+ If you are not familiar with the _tidyverse_ workflow, please refer to the [R for Data Science](https://r4ds.had.co.nz/) book we suggested in the previous section. 
+
+We now attach these packages.  
+```{r, message=FALSE, results='hide',warning=FALSE}
+library(tidyverse)
+library(sf)
+library(ggplot2)
+library(terra)
+library(geodata)
+library(haven)
+library(knitr)
+library(stargazer)
+library(lfe)
+remotes::install_github("rspatial/geodata")
+```
+
+
+### Accessing the Subways Data in R
+
+The Subways data are stored as shapefiles and available to download as a 7Z file [here](https://www.dropbox.com/s/dm13mcrkhhhkrll/subway_census_v1.7z?dl=0). 7Z files are compressed using the open-source 7-Zip tool and typically require a third-party app to access. There are many apps available to open 7Z files, but an easy option for Windows users is to download the [7-Zip app directly](https://www.7-zip.org/download.html). MacOS users can use a tool like the  [Unarchiver](https://www.howtogeek.com/226729/how-to-open-7z-and-other-archive-files-on-os-x/). For a more detailed description of working with 7Z files, see [this tutorial for Windows](https://www.howtogeek.com/357846/what-is-a-7z-file-and-how-do-i-open-one/) or [this guide for macOS](https://www.howtogeek.com/226729/how-to-open-7z-and-other-archive-files-on-os-x/).
+
+#### Station Points
+
+Within the subway_census folder, you'll find the three subway datasets described above: `station_points`, `route_maps`, and `ridership`. The main data is located in `station_points`. We can read this into R and view the first 5 rows of the dataset with:
+
+```{r}
+subway_stations <- st_read('./subway_census_v1/station_points/subway_stations2.shp', crs=4326)
+subway_stations[0:5,]
+```
+
+We see we have precise geographic information stored in individual columns - `SUBWAYLAT` and `SUBWAYLONG` - and combined into a geographic representation in `geometry`. We also have additional information for each subway point to use in any analysis or visualizations. As an example, we can visualize the stations in Athens, Greece, colored by Line and include a background map of Athens for context.
+
+First, we can select our Athens subway data and visualize these locations:
+```{r}
+subways_athens <- subway_stations %>% filter(CITY1 == 'athens')
+plot(subways_athens$geometry)
+```
+We can see a definite pattern in these stations, but it would be helpful to have some geographic context in the form of a background map. We can download map data from a variety of sources, but for this example we'll use the Global Administrative Area Database ([GADM](https://gadm.org/index.html)). You can download map data directly from GADM, as in this [post](https://keithnewman.co.uk/r/maps-in-r-using-gadm.html), or you can use R to obtain GADM map data - we'll be using R. 
+
+Geographic levels in GADM are defined as:
+
+* level 0: National
+* level 1: State/province/equivalent
+* level 2: County/district/equivalent
+* level 3/4: Smaller administrative levels
+
+For our example, we are interested viewing the city of Athens alongside our subways data. We can download the map of Greece and its level 3 administrative areas in order to get this appropriate level of detail:
+
+```{r, eval=F}
+greece = geodata::gadm("Greece", level=3, path="./data")
+```
+
+The boundary data is downloaded to the path that you specified in the `path` argument. The downloaded data through `gadm()` will be in the _PackedSpatVector_ class. If you want to convert it to another class (in our case, the _sf_ class, so we can use it alongside our subways data), you can first read it using `readRDS()`, then convert to a _SpatVector_ via `vect()` from the _terra_ package, and finally convert it to a _sf_ object.
+
+```{r}
+greece = readRDS("./data/gadm36_GRC_3_pk.rds") %>% vect() %>% st_as_sf(greece)
+```
+
+To see what data we've pulled graphically, we can visualize our entire map of Greece's level 3 administrative boundaries colored by the Level 1 regions. 
+
+```{r}
+plot(greece$geometry, col=as.factor(greece$NAME_1))
+```
+Since we want to use this map alongside our subways data, we'll need to select only the areas which the subways service. Though this subway system belongs to Athens, it extends outside of the official city limits, meaning we can't simply filter for the Athens city limits (which would be `NAME_3 == 'Athens'`), as this won't capture the full extent of our subways. Instead, we can use the geographic subway data itself as a filter, selecting only those areas of our map of Greece which have a station along the Athens subway line. We'll do this with the _sf_ package's `st_join()` function, which will compare the `geometry` field in our Subways data with the `geometry` field in our Greece data and can return only the areas where the geometries overlap. We use `left=FALSE` to ensure that this join acts as a filter rather than returning back all of our Greece data.
+
+```{r}
+athens_area <- st_join(greece, subways_athens, join=st_intersects, left=FALSE)
+
+# plot the areas which are reached by the Athens subway line
+plot(athens_area$geometry, col=as.factor(athens_area$NAME_3)) # use as.factor() so plot() recognizes areas as categories
+# add a legend to identify our areas
+legend('left', legend=levels(as.factor(athens_area$NAME_3)),fill=unique(as.factor(athens_area$NAME_3)))
+```
+
+We're now ready to combine this map of Athens with our Athens subway points. We can use `ggplot()` for this map, as it enables more advanced visualizations. 
+
+```{r}
+ggplot() +
+  geom_sf(data = athens_area)  +
+  geom_point(data = subways_athens, aes(x=SUBWAYLONG, y=SUBWAYLAT, color=factor(as.factor(subways_athens$LINE_NAME)))) +
+  labs(color = 'Subway Lines',
+       title = 'Athens Subway Lines') +
+  xlab("Longitude") +
+  ylab("Latitude")
+```
+
+#### Route Maps
+
+The Subways data also contains route maps at five-year intervals for each subway system, which are located in the `route_maps` folder. For our example, we can start with the most recent routes, from 2010, and see what the data looks like:
+
+```{r}
+subway_route2010 <- st_read('./subway_census_v1/route_maps/subway_map_2010.shp', crs=4326)
+subway_route2010[0:5,]
+```
+
+We can see that, unlike the `station_points` data above, this file only contains the `urbancode` as an identifying field alongside the geographic representation of the subway routes. If we wanted to work solely with the routes data, we could use `urbancode` to match the appropriate countries and cities from the `station_points` data with our route data. We first will select the unique urban codes with associated cities, countries, and continents from our `station_points` data. Then, we can use `join()` to associate these location names with our route data.
+
+```{r}
+# find list of all urban codes with associated continent, country, and city names
+urbancode_info <- subway_stations %>% as.data.frame() %>% distinct(CONTINENT, COUNTRY1, CITY1, URBANCODE)
+
+# join urban code info with route data to ease route identification
+subway_route2010_add <- merge(subway_route2010, urbancode_info, by.x = 'urbancode', by.y = 'URBANCODE')
+
+# view top 5 rows of updated route data
+subway_route2010_add[0:5,]
+```
+
+We now have City, Country, and Continent information for each route, which will enable us to more easily select the routes we're interested in. For example, if we'd like to view our Athens route from above:
+
+```{r}
+athens_route2010 <- subway_route2010_add %>% filter(CITY1 == 'athens')
+plot(athens_route2010$geometry)
+```
+
+#### Ridership Data
+
+The Subways data also provides information on Ridership for the subway systems where it is available. This is provided as a stata data file type (.dta), so we will need to use the _haven_ package's `read_dta()` function to bring the data into R.
+
+```{r}
+ridership <- read_dta('./subway_census_v1/ridership/ridership.dta')
+ridership[0:5,]
+```
+
+We find we have values for all rides taken in a city each year along with a breakdown of rides which were heavy rail, light rail, or only buses. The `urbancode` field in this data aligns with the urban code fields in our station points and routes data sets above, which will allow us to use this ridership data in our analysis of the geographic subway data sets.
+
+
+# BASIC OPERATIONS AND ANALYSIS
+
+We can now turn to using these Subways data for some initial analysis.
+
+
+## Summary Statistics
+
+We can first present overall summary statistics for cities which had subways in 2010. We can create values for stations, subway lines, routes, and ridership worldwide and for different world regions.
+
+Note: If comparing these values to the values in Table 1 of "Subways and Urban Growth: Evidence From Earth" (2018), Gonzalez-Navarro and Turner, you will notice differences in values. While this dataset includes the Middle East as a `CONTINENT` in the data, in the paper the countries in the Middle East are assigned to Asia (UAE, Iran, Saudi Arabia, Turkey, and Uzbekistan). Further, there are some countries assigned as Europe in this data but assigned as Asia in the paper (Armenia, Azerbaijan, Russia). Thus, the values for Asia and Africa will differ between this output and Table 1 in the paper. 
+
+```{r}
+subway_stations_pre2010 <- filter(subway_stations, YEAR_COMPL <= 2010)
+```
+
+```{r, warning = FALSE, message=FALSE}
+# calculate number of stations and lines by city
+city_stats_stations <- subway_stations %>% 
+  as.data.frame() %>% dplyr::select(-c('geometry')) %>%
+  group_by(CONTINENT, COUNTRY1, CITY1) %>%
+  summarize(
+    stations = n_distinct(STATIONID),
+    lines = n_distinct(LINE_NAME))
+
+# calculate mean and total stations and lines by continent
+region_stats_stations <- city_stats_stations %>%
+  group_by(CONTINENT) %>%
+  summarize(
+    total_cities = n_distinct(CITY1),
+    total_stations = sum(stations),
+    mean_stations = mean(stations),
+    total_lines = sum(lines),
+    mean_lines = mean(lines)
+  )
+
+total_stats_stations <- region_stats_stations %>%
+  summarize(
+    total_cities = sum(total_cities),
+    total_stations = sum(total_stations),
+    mean_stations = mean(mean_stations),
+    total_lines = sum(total_lines),
+    mean_lines = mean(mean_lines)
+  )
+
+
+# calculate length of routes by city
+city_stats_routes <- subway_route2010_add %>%
+  group_by(CONTINENT, COUNTRY1, CITY1) %>%
+  summarize(
+    route_length = st_length(geometry)) %>%
+  as.data.frame() %>% dplyr::select(-c('geometry'))
+
+# calculate mean and total route length by continent
+region_stats_routes <- city_stats_routes %>%
+  group_by(CONTINENT) %>%
+  summarize(
+    total_route_length = sum(route_length),
+    mean_route_length = mean(route_length)
+  )
+
+total_stats_routes <- region_stats_routes %>%
+  summarize(
+    total_route_length = sum(total_route_length),
+    mean_route_length = mean(mean_route_length)
+  )
+
+
+# join statistics for regions and cities
+full_region_stats <- merge(region_stats_stations, region_stats_routes, by='CONTINENT')
+full_total_stats <- cbind(total_stats_stations, total_stats_routes)
+full_total_stats$CONTINENT = 'Total'
+full_stats <- rbind(full_region_stats, full_total_stats)
+full_city_stats <- merge(city_stats_stations, city_stats_routes, by=c('CONTINENT','COUNTRY1','CITY1'))
+kable(full_stats)
+kable(filter(full_city_stats, COUNTRY1 == 'greece'))
+```
+
+Ridership statistics are also available for use from this dataset. To better focus our analysis, we can include only ridership from a single year, and we can use 2010 for our example:
+
+```{r}
+ridership_2010 <- filter(ridership, year==2010)
+
+subway_stats_2010 <- ridership_2010 %>%
+  filter(!is.na(ridershipheavyrail)) %>%
+  summarize(
+    mean_ridership = mean(ridershipheavyrail),
+    sd_ridership = sd(ridershipheavyrail),
+    countries = n_distinct(country),
+    cities = n_distinct(urbanname)
+  ) %>% mutate(transit = 'Subway')
+bus_stats_2010 <- ridership_2010 %>%
+  filter(!is.na(ridershipbuses)) %>%
+  summarize(
+    mean_ridership = mean(ridershipbuses),
+    sd_ridership = sd(ridershipbuses),
+    countries = n_distinct(country),
+    cities = n_distinct(urbanname)
+  ) %>% mutate(transit = 'Bus')
+
+ridership_stats_2010 <- rbind(subway_stats_2010, bus_stats_2010) %>% select(transit,everything())
+ridership_stats_2010
+```
+
+
+## Charts
+
+We can also consider charts to display these summary statistics graphically.
+
+```{r}
+ggplot(data=full_region_stats) +
+  geom_bar(aes(x=CONTINENT,y=total_stations,fill=CONTINENT), stat='identity') +
+  geom_bar(aes(x=CONTINENT,y=mean_stations),stat='identity') +
+  scale_fill_brewer(palette = 'Dark2', guide=FALSE) +
+  labs(color = 'Continent',
+       title = 'Total and Mean Stations by Continent') +
+  xlab("Continent") +
+  ylab("Stations")
+```
+
+We can visualize the creation of subways over time as well:
+
+```{r}
+stations_yearly <- subway_stations %>%
+  as.data.frame() %>% dplyr::select(-c('geometry')) %>%
+  group_by(YEAR_COMPL) %>%
+  summarize(
+    stations = n_distinct(STATIONID))
+
+stations_yearly$total_stations = cumsum(stations_yearly$stations)
+
+plot(x=stations_yearly$YEAR_COMPL, y=stations_yearly$total_stations,type='l',xlab='Year',ylab='Operational Stations')
+```
+
+
+## Maps
+
+We can first consider a combination of our subway stations and route maps from above:
+
+```{r}
+ggplot() +
+  geom_sf(data = athens_area)  +
+  geom_point(data = subways_athens, aes(x=SUBWAYLONG, y=SUBWAYLAT, color=factor(as.factor(subways_athens$LINE_NAME)))) +
+  geom_sf(data = athens_route2010) +
+  labs(color = 'Subway Lines',
+       title = 'Athens Subway Lines') +
+  xlab("Longitude") +
+  ylab("Latitude")
+```
+
+We can consider the evolution of a particular system over time by viewing the routes in different years. While the earliest subway in Athens was completed in 1869 (found using `min(subways_athens$YEARS_COMPL)`), the route maps are provided from 1935 onward, so we can begin with 1935 and add 1950, 1970, 1990, and 2010 to act as a sample over time. It will be easiest to create a function to bring in the route data for specific years and (optionally) filter by city in order to be able to easily pull this information for any combination of cities and years.
+
+```{r}
+# find the year of the first subway in Athens
+min(subways_athens$YEAR_COMPL)
+
+# route years for sample
+years = c(1935, 1950, 1970, 1990, 2010)
+
+# function to pull in multiple subway route files for specified years and city
+read_multiple_routes <- function(years, urbancode_map, city=NULL){
+  for(year in years){
+    route_file <- paste('./subway_census_v1/route_maps/subway_map_',as.character(year),'.shp', sep='') 
+    route_full <- st_read(route_file, crs=4326)
+    route_add <- merge(route_full, urbancode_info, by.x = 'urbancode', by.y = 'URBANCODE')
+    # filter for city if specified
+    if(!is.null(city)){
+      print(paste('filtering for city',city))
+      route <- filter(route_add, CITY1 == city)
+    } else {route <- route_add}
+    # add year of route
+    route$year <- year
+    # combine different route years into single dataset
+    if(exists('final_routes')){
+      final_routes <- rbind(final_routes, route)
+    } else final_routes <- route
+  }
+  return(final_routes)
+}
+
+# combine all Athens routes into single data set
+athens_routes <- read_multiple_routes(years, urbancode_info, city='athens')
+athens_routes[0:5,]
+```
+
+We now have the route maps for Athens for the 5 years we specified, so we can plot these in order to view the progression of the subway systems.
+
+```{r}
+ggplot() +
+  geom_sf(data = athens_area)  +
+  geom_sf(data = athens_routes, aes(color=as.factor(athens_routes$year)), size=1.3) +
+  labs(color = 'Years',
+       title = 'Historical Progression of Athens Subway Lines') +
+  xlab("Longitude") +
+  ylab("Latitude")
+```
+
+Note that if we color the subway lines by the data source order, the 2010 lines will be plotted last and thus cover over any of the earlier lines which are still in use. We can fix this by reordering our coloring to place the 2010 lines first and cover over the 2010 lines with any historical lines to better view the progression:
+
+```{r}
+ggplot() +
+  geom_sf(data = athens_area)  +
+  geom_sf(data = athens_routes, aes(color=fct_reorder(as.factor(athens_routes$year),desc(athens_routes$year))), size=1.3) +
+  labs(color = 'Years',
+       title = 'Historical Progression of Athens Subway Lines') +
+  xlab("Longitude") +
+  ylab("Latitude")
+```
+
+We can also consider the progression of route lengths over time from this data set:
+
+```{r}
+# calculate length of routes by city
+athens_routes$route_length = st_length(athens_routes$geometry)
+kable(athens_routes)
+```
+
+In line with what we see in the map of subway line progression, the largest additions to the Athens subway were performed in the periods 1950-1970 and 1990-2010.
+
+
+
+# USAGE EXAMPLE
+
+To see an example of this data used in a published work, we can recreate one of the outputs from [Subways and Urban Growth: Evidence from Earth](https://www.nber.org/system/files/working_papers/w24996/w24996.pdf), Gonalez-Navarro and Turner (2018). 
+
+One aspect of subway systems which the authors investigate is the effect of the number of operational subway stations on public transit ridership. The literature have found varying effects of subways on the forms of transportation used by city residents, with some arguing that introducing subways will decrease ridership or availability of other forms of transportation, such as buses, and others arguing that overall public transportation ridership should increase as people use subways in concert with other modes of travel. 
+
+The authors prefer to use the first differences of our variables of interest, where $\Delta$ denotes the first differences, $\Delta x_t = x_t - x_{t-1}$. They prefer this in order to remove time-invariant unobservables from the regression equations. Our ultimate dependent variable will thus be the change in the natural log of ridership over a 5-year period and our primary independent variable will be change in the natural log of subway stations over the same period. We will be estimating the regression:
+$$\Delta y_{it} = A_1 \Delta s_{it} + A_2 (\Delta s_{it} * x_i) + \Delta \epsilon_{it} $$
+In this model, $y_{it}$ is our outcome of interest, ridership, $s_{it}$ is the subway extent in city i in year t (the number of operational stations), and $x_{i}$ are the terminal values of control variables. 
+
+We can replicate the first difference regression by bringing in the authors' provided dataset, `analyze_me2.dta`, which is located in the `replication_file` folder and can be downloaded [here](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/VHPRTA). We will use the `felm()` function from the `lfe` package to regress ridership on subway extent with standard errors clustered on cities.  
+
+```{r, results='hide'}
+rep_data <- read_dta('./replication_file/data/analyze_me2.dta')
+```
+
+```{r}
+# perform filtering and field creation according to authors' methodology to use only relevant data points 
+rep_data_prep <- rep_data %>% filter((year %% 5 == 0) & (year >= 1950)) %>% mutate(quinquenial = as.integer(year/5-389), urbancode_n = as.integer(urbancode_n))
+rep_data_prep <- rep_data_prep[with(rep_data_prep,order(urbancode_n, quinquenial)),]  
+```
+
+```{r, warning=FALSE}
+# total ridership
+diff_all_ridership <- felm(Dlog_ridership_sub_and_bus ~ Dlop | 0 | 0 | urbancode, data=rep_data_prep)
+
+# subway ridership
+diff_subway_ridership <- felm(Dlog_ridershipheavyrail ~ Dlop | 0 | 0 | urbancode, data=rep_data_prep)
+
+# bus ridership
+diff_bus_ridership <- felm(Dlog_ridershipbuses ~ Dlop | 0 | 0 | urbancode, data=rep_data_prep)
+
+stargazer(diff_all_ridership,diff_subway_ridership,diff_bus_ridership,
+          title = 'First Difference Regressions: Ridership and Subway Extent',
+          dep.var.labels.include = FALSE,
+          covariate.labels = c('Diff ln(subway stations)'),
+          column.labels = c('Change in ln(All Ridership)', 'Change in ln(Subway Ridership)', 'Change in ln(Bus Ridership)'), type='text')
+```
+
+In line with the findings of Gonalez-Navarro and Turner, increasing subway extent appears to have a positive and significant effect on overall public transportation ridership, a positive effect on subway ridership, yet no effect on bus ridership. This indicates that increases in subway ridership do not take away from bus ridership, which may help alleviate the concerns of some who fear extending subway systems will divert resources and ridership from buses, which may be more prevalent in lower-income neighborhoods. 
+  
+  
+  
+  
+  
+# Resources Cited  
+  
+https://www.gislounge.com/what-is-a-shapefile/  
+https://www.earthdatascience.org/courses/earth-analytics/spatial-data-r/make-maps-with-ggplot-in-R/  
+https://stackoverflow.com/questions/41704404/r-plot-color-legend-by-factor  
+https://ggplot2.tidyverse.org/reference/geom_point.html  
+http://datacornering.com/cumulative-sum-or-count-in-r/  
+http://www.sthda.com/english/wiki/ggplot2-barplots-quick-start-guide-r-software-and-data-visualization  
+https://www.datanovia.com/en/blog/the-a-z-of-rcolorbrewer-palette/  
+https://www.earthdatascience.org/workshops/clean-coding-tidyverse-intro/summarise-data-in-R-tidyverse/  
+https://rdrr.io/github/tidyverse/haven/man/read_dta.html  
+https://www.worldfullofdata.com/r-tutorial-plot-maps-shapefiles/  
+
+
+
+
+
+
