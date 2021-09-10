@@ -5,4 +5,6 @@
  * Subways Learning Module.Rmd: Full tutorial with code and descriptions as an R Notebook
  * Subways-Learning-Module.html: Webpage view of tutorial contents
  * Subways Registry.Rmd: R Notebook of supporting information for Subways dataset
- * Subways-Registry.html: Webpage view of Registry contents
+ * Subways-Registry.html: Webpage view of Registry contents  
+  
+Primary Author: [Natalie Ayers](https://github.com/natalie-ayers)
