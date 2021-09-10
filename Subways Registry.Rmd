@@ -1,0 +1,34 @@
+---
+title: "Subways Registry"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+# Description
+
+These subways data provide the location and opening date of all subway stations worldwide for which records are available. In these data, a subway is defined as 'as an electric-powered urban rail system isolated from interactions with automobile traffic and pedestrians' (Gendron-Carrier et al. 2021). Under this definition, heavy rail commuter lines and streetcars are excluded to focus on intra-city subway systems. These records were compiled manually for use in [Subways and Urban Growth: Evidence from Earth](https://www.nber.org/system/files/working_papers/w24996/w24996.pdf), Gonalez-Navarro and Turner (2018), using a variety of online sources including http://www.urbanrail.net/. The initial dataset was created between January 2012 and February 2014 by Farhan Yahya, Mahdy Saddradini, Mohamed Salat, and Fern Ramoutar, and it was subsequently updated in 2020 to include data through December 2017. Latitude, Longitude, Station Name, Subway Line, Country, City, and Year Completed are included in the main dataset. 
+
+These data were used further to approximate the route of each subway line by connecting stations along the same line by their shortest route. The geographic representations of these routes, stored individually at 5-year intervals from 1935-2000, are provided for use as well.
+
+Subway ridership was also compiled for these public transit systems. While ridership is not available for all systems, the team obtained data for 77 subway and 40 bus systems. These data were collected from a variety of transit organizations and government sources, and they include counts of total public transit rides, heavy rail rides, bus rides and light rail rides by year, country, and city for dates between 1963 and 2014. 
+
+## Updating Frequency
+The most recent update in 2020 added data for subway stations through December 2017. The ridership data are updated through 2014. The timing of future updates is uncertain.
+
+## Documentation
+https://www.dropbox.com/s/dm13mcrkhhhkrll/subway_census_v1.7z?dl=0, within README.txt 
+  
+## URL
+https://www.dropbox.com/s/dm13mcrkhhhkrll/subway_census_v1.7z?dl=0
+
+## Contact
+Marco Gonzalez-Navarro, marcog@berkeley.edu
+
+# Tools and Usage Examples
+## Tools
+* Geo4Dev Subways Learning Module
+
+## Usage Examples
+* [Subways and Urban Growth: Evidence from Earth](https://www.nber.org/system/files/working_papers/w24996/w24996.pdf) by Marco Gonzalez-Navarro and Matthew A. Turner
+* [Subways and Urban Air Pollution (forthcoming)](https://www.dropbox.com/s/60f5t4qd9a7jcpu/subways_AOD34.pdf?raw=1) by Nicolas Gendron-Carrier, Marco Gonzalez-Navarro, Stefano Polloni, and Matthew Turner.
