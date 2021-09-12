@@ -12,7 +12,10 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = '.')
 ```
 
-# INTRODUCTION
+# INTRODUCTION  
+  
+This tutorial draws inspiration for the analyses of the Subways data from "Subways and Urban Growth: Evidence from Earth" (2018), by Marco Gonzalez-Navarro and Matthew Turner. However, it does not directly follow the methodology used in this paper for all calculations. As such, the user should not expect all values and results to align directly with Gonzalez-Navarro and Turner's.
+
 
 ## Introduction to Subways Data
 
